@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap};
 
 /// BM25 scoring parameters
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -72,8 +72,8 @@ impl Bm25Index {
             avg_doc_length: 0.0,
             total_docs: 0,
             inverted_index: HashMap::new(),
-            k1: 1.2,
-            b: 0.75,
+            params: Bm25Params::default(),
+            token_to_docs: HashMap::new()
         }
     }
 
@@ -102,24 +102,34 @@ impl Bm25Index {
         results
     }
 
+    /// Calculate BM25 score for a document given query terms
     fn calculate_score(&self, query_tokens: &[String], doc_id: usize) -> f32 {
         let mut score = 0.0;
         let doc_length = self.doc_lengths[doc_id] as f32;
-        let length_norm = 1.0 - self.b + self.b * (doc_length / self.avg_doc_length);
+
+        // Length normalization factor
+        let length_norm = 1.0 - self.params.b + self.params.b * (doc_length / self.avg_doc_length);
 
         for term in query_tokens {
+            // Get term frequency in this document
             let tf = self.get_term_frequency(term, doc_id) as f32;
             if tf == 0.0 {
                 continue;
             }
 
+            // Get document frequency
             let df = self.doc_frequencies.get(term).copied().unwrap_or(0) as f32;
             if df == 0.0 {
                 continue;
             }
 
+            // Calculate IDF component
+            // Using log((N - df + 0.5) / (df + 0.5) + 1) for better scores
             let idf = ((self.total_docs as f32 - df + 0.5) / (df + 0.5) + 1.0).ln();
-            let normalized_tf = (tf * (self.k1 + 1.0)) / (tf + self.k1 * length_norm);
+
+            // Calculate normalized term frequency with saturation
+            let normalized_tf = (tf * (self.params.k1 + 1.0)) / (tf + self.params.k1 * length_norm);
+
             score += idf * normalized_tf;
         }
 
