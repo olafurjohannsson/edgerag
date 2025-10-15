@@ -28,8 +28,8 @@ impl EdgeRAG {
     }
 
     #[wasm_bindgen(js_name = loadVectors)]
-    pub fn load_vectors(&mut self, data: &[u8]) -> Result<(), JsValue> {
-        self.vectors = bincode::deserialize(data)
+    pub fn load_vectors(&mut self, json: &str) -> Result<(), JsValue> {
+        self.vectors = serde_json::from_str(json)
             .map_err(|e| JsValue::from_str(&format!("Load vectors failed: {}", e)))?;
         web_sys::console::log_1(&format!("Loaded {} vectors", self.vectors.embeddings.len()).into());
         Ok(())

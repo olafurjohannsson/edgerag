@@ -1,15 +1,67 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// BM25 scoring parameters
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Bm25Params {
+    /// Controls term frequency saturation (typically 1.2-2.0)
+    /// Higher values = term frequency has more impact
+    #[serde(default = "default_k1")]
+    pub k1: f32,
+
+    /// Controls length normalization (typically 0.5-0.8)
+    /// 0.0 = no length normalization, 1.0 = full normalization
+    #[serde(default = "default_b")]
+    pub b: f32,
+
+    /// Epsilon value to prevent log(0)
+    #[serde(default = "default_epsilon")]
+    pub epsilon: f32,
+}
+
+fn default_k1() -> f32 {
+    1.2
+}
+fn default_b() -> f32 {
+    0.75
+}
+fn default_epsilon() -> f32 {
+    0.25
+}
+
+impl Default for Bm25Params {
+    fn default() -> Self {
+        Self {
+            k1: default_k1(),
+            b: default_b(),
+            epsilon: default_epsilon(),
+        }
+    }
+}
+
+/// BM25 index for efficient keyword search
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Bm25Index {
+    /// Document frequencies for each term
     doc_frequencies: HashMap<String, usize>,
+
+    /// Document lengths (in tokens)
     doc_lengths: Vec<usize>,
+
+    /// Average document length
     avg_doc_length: f32,
+
+    /// Total number of documents
     total_docs: usize,
+
+    /// Inverted index: term -> list of (doc_id, term_frequency)
     inverted_index: HashMap<String, Vec<(usize, usize)>>,
-    k1: f32,
-    b: f32,
+
+    /// BM25 parameters
+    params: Bm25Params,
+
+    /// Token to index mapping for faster lookups
+    token_to_docs: HashMap<String, HashSet<usize>>,
 }
 
 impl Bm25Index {
